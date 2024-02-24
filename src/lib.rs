@@ -23,7 +23,6 @@ impl Fp {
         (self.0 / SCALE) as i16
     }
 
-
     pub fn one() -> Self {
         Self(SCALE)
     }
@@ -31,6 +30,10 @@ impl Fp {
     pub fn zero() -> Self {
         Self(0)
     }
+
+    pub const MIN:Fp = Fp(i32::MIN);
+    pub const MAX:Fp = Fp(i32::MAX);
+
 }
 
 impl Mul<Fp> for Fp {
