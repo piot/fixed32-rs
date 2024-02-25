@@ -1,4 +1,5 @@
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use std::fmt;
 
 pub const SCALE: i32 = 1000;
 pub const FSCALE: f32 = SCALE as f32;
@@ -36,11 +37,17 @@ impl Fp {
 
 }
 
+impl fmt::Display for Fp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "fp:{:.3} ({})", (self.0 as f32) / FSCALE, self.0)
+    }
+}
+
 impl Mul<Fp> for Fp {
     type Output = Fp;
 
     fn mul(self, rhs: Fp) -> Self::Output {
-        Fp((self.0 * rhs.0) / SCALE)
+        Fp(  (((self.0 as i64) * (rhs.0 as i64)) / (SCALE as i64)) as i32)
     }
 }
 
