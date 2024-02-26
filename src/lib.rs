@@ -28,6 +28,10 @@ impl Fp {
         Self(SCALE)
     }
 
+    pub fn neg_one() -> Self {
+        Self(-SCALE)
+    }
+
     pub fn zero() -> Self {
         Self(0)
     }
