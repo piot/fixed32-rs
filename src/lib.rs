@@ -1,10 +1,10 @@
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 use std::fmt;
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
 pub const SCALE: i32 = 1000;
 pub const FSCALE: f32 = SCALE as f32;
 
-#[derive(Debug, Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Fp(pub i32);
 
 impl Fp {
@@ -36,14 +36,19 @@ impl Fp {
         Self(0)
     }
 
-    pub const MIN:Fp = Fp(i32::MIN);
-    pub const MAX:Fp = Fp(i32::MAX);
+    pub const MIN: Fp = Fp(i32::MIN);
+    pub const MAX: Fp = Fp(i32::MAX);
+}
 
+impl fmt::Debug for Fp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "fp:{:.3} ({})", (self.0 as f32) / FSCALE, self.0)
+    }
 }
 
 impl fmt::Display for Fp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "fp:{:.3} ({})", (self.0 as f32) / FSCALE, self.0)
+        write!(f, "{:.2}", (self.0 as f32) / FSCALE)
     }
 }
 
@@ -51,7 +56,7 @@ impl Mul<Fp> for Fp {
     type Output = Fp;
 
     fn mul(self, rhs: Fp) -> Self::Output {
-        Fp(  (((self.0 as i64) * (rhs.0 as i64)) / (SCALE as i64)) as i32)
+        Fp((((self.0 as i64) * (rhs.0 as i64)) / (SCALE as i64)) as i32)
     }
 }
 
@@ -98,7 +103,7 @@ impl Div<Fp> for i16 {
 
     fn div(self, rhs: Fp) -> Self::Output {
         eprintln!("hello {:?} / {:?}", (self as i32) * SCALE, rhs.0);
-        Fp ( (self as i32) * SCALE / rhs.0 * SCALE)
+        Fp((self as i32) * SCALE / rhs.0 * SCALE)
     }
 }
 
@@ -157,5 +162,4 @@ mod tests {
         let result = 99 * Fp::from_int(10);
         assert_eq!(result.to_int(), 990);
     }
-
 }
