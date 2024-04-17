@@ -8,24 +8,28 @@ pub const FSCALE: f32 = SCALE as f32;
 pub struct Fp(pub i32);
 
 impl Fp {
-    pub fn from_float(value: f32) -> Self {
+    fn from_float(value: f32) -> Self {
         Fp((value * FSCALE) as i32)
     }
 
-    pub fn to_float(&self) -> f32 {
+    fn to_float(self) -> f32 {
         self.0 as f32 / FSCALE
     }
 
-    pub fn from_int(value: i16) -> Self {
+    fn from_int(value: i16) -> Self {
         Self((value as i32) * SCALE)
     }
 
-    pub fn to_int(&self) -> i16 {
+    fn to_int(self) -> i16 {
         (self.0 / SCALE) as i16
     }
 
     pub fn one() -> Self {
         Self(SCALE)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 
     pub fn neg_one() -> Self {
@@ -38,6 +42,30 @@ impl Fp {
 
     pub const MIN: Fp = Fp(i32::MIN);
     pub const MAX: Fp = Fp(i32::MAX);
+}
+
+impl From<Fp> for f32 {
+    fn from(fp: Fp) -> Self {
+        fp.to_float()
+    }
+}
+
+impl From<Fp> for i16 {
+    fn from(fp: Fp) -> Self {
+        fp.to_int()
+    }
+}
+
+impl From<f32> for Fp {
+    fn from(v: f32) -> Self {
+        Fp::from_float(v)
+    }
+}
+
+impl From<i16> for Fp {
+    fn from(v: i16) -> Self {
+        Fp::from_int(v)
+    }
 }
 
 impl fmt::Debug for Fp {
@@ -161,5 +189,18 @@ mod tests {
     fn mul_int() {
         let result = 99 * Fp::from_int(10);
         assert_eq!(result.to_int(), 990);
+    }
+
+    #[test]
+    fn from_float() {
+        let result = 99 * Fp::from(10.0);
+        assert_eq!(result.to_int(), 990);
+    }
+
+    #[test]
+    fn from_int() {
+        let result = 99 * Fp::from(10);
+        let i: i16 = result.into();
+        assert_eq!(i, 990);
     }
 }
