@@ -4,7 +4,7 @@ use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 pub const SCALE: i32 = 1000;
 pub const FSCALE: f32 = SCALE as f32;
 
-#[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct Fp(pub i32);
 
 impl Fp {
