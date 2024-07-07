@@ -5,7 +5,7 @@
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
-pub const SCALE: i32 = 1000;
+pub const SCALE: i32 = 0x10000;
 pub const FSCALE: f32 = SCALE as f32;
 
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
@@ -96,7 +96,7 @@ impl Div<Fp> for Fp {
     type Output = Fp;
 
     fn div(self, rhs: Fp) -> Self::Output {
-        Fp((self.0 * SCALE) / rhs.0) // Scale to avoid overflow
+        Fp(self.0 / rhs.0 * SCALE)
     }
 }
 
