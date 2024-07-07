@@ -1,11 +1,12 @@
 /*----------------------------------------------------------------------------------------------------------
- *  Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
- *  Licensed under the MIT License. See LICENSE in the project root for license information.
- *--------------------------------------------------------------------------------------------------------*/
+	* Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
+	* Licensed under the MIT License. See LICENSE in the project root for license information.
+	*--------------------------------------------------------------------------------------------------------*/
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
 pub const SCALE: i32 = 0x10000;
+pub const SCALE_I64: i64 = 0x10000;
 pub const FSCALE: f32 = SCALE as f32;
 
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
@@ -96,7 +97,19 @@ impl Div<Fp> for Fp {
     type Output = Fp;
 
     fn div(self, rhs: Fp) -> Self::Output {
-        Fp(self.0 / rhs.0 * SCALE)
+        if rhs.0 == 0 {
+            panic!("division by zero");
+        }
+
+        let dividend_i64 = self.0 as i64;
+        let divisor_i64 = rhs.0 as i64;
+        let quotient = dividend_i64 * SCALE_I64 / divisor_i64;
+
+        if quotient > i32::MAX as i64 || quotient < i32::MIN as i64 {
+            panic!("overflow occurred in Fp::div");
+        }
+
+        Self(quotient as i32)
     }
 }
 
@@ -175,6 +188,12 @@ mod tests {
     fn div() {
         let result = Fp::from_int(99) / Fp::from_int(3);
         assert_eq!(result.0, 33 * SCALE);
+    }
+
+    #[test]
+    fn div_bigger_number() {
+        let result = Fp::from_int(30000) / Fp::from_int(12);
+        assert_eq!(result.0, 2500 * SCALE);
     }
 
     #[test]
