@@ -2,8 +2,8 @@
  * Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
  * Licensed under the MIT License. See LICENSE file for details.
  */
-use std::fmt;
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use core::fmt;
+use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
 /// The scaling factor used for fixed-point arithmetic.
 pub const SCALE: i32 = 0x10000;
