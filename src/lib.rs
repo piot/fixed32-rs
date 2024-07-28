@@ -1,73 +1,126 @@
-/*----------------------------------------------------------------------------------------------------------
-	* Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
-	* Licensed under the MIT License. See LICENSE in the project root for license information.
-	*--------------------------------------------------------------------------------------------------------*/
+/*
+ * Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
+ * Licensed under the MIT License. See LICENSE file for details.
+ */
 use std::fmt;
 use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
+/// The scaling factor used for fixed-point arithmetic.
 pub const SCALE: i32 = 0x10000;
-pub const SCALE_I64: i64 = 0x10000;
+pub const SCALE_I64: i64 = SCALE as i64;
 pub const FSCALE: f32 = SCALE as f32;
 
+/// A fixed-point number with 16.16 format.
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct Fp(pub i32);
 
 impl Fp {
-    fn from_float(value: f32) -> Self {
-        Fp((value * FSCALE) as i32)
-    }
-
-    fn to_float(self) -> f32 {
-        self.0 as f32 / FSCALE
-    }
-
-    fn from_int(value: i16) -> Self {
-        Self((value as i32) * SCALE)
-    }
-
-    fn to_int(self) -> i16 {
-        (self.0 / SCALE) as i16
-    }
-
+    /// Returns the constant `Fp` value for one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed32::Fp;
+    /// assert_eq!(1, Fp::one().into());
+    /// ```
+    #[inline]
     pub fn one() -> Self {
         Self(SCALE)
     }
 
-    pub fn is_zero(&self) -> bool {
+    /// Checks if the `Fp` value is zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed32::Fp;
+    /// assert!(Fp::zero().is_zero());
+    /// ```
+    #[inline]
+    pub fn is_zero(self) -> bool {
         self.0 == 0
     }
 
+    /// Returns the constant `Fp` value for negative one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed32::Fp;
+    /// assert_eq!(<Fp as Into<i16>>::into(Fp::neg_one()), -1);
+    /// ```
+    #[inline]
     pub fn neg_one() -> Self {
         Self(-SCALE)
     }
 
+    /// Returns the constant `Fp` value for zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed32::Fp;
+    /// assert_eq!(<Fp as Into<i16>>::into(Fp::zero()), 0);
+    /// ```
+    #[inline]
     pub fn zero() -> Self {
         Self(0)
     }
 
     pub const MIN: Fp = Fp(i32::MIN);
     pub const MAX: Fp = Fp(i32::MAX);
+
+    #[inline]
+    fn from_float(value: f32) -> Self {
+        Fp((value * FSCALE) as i32)
+    }
+
+    #[inline]
+    fn to_float(self) -> f32 {
+        self.0 as f32 / FSCALE
+    }
+
+    #[inline]
+    fn from_int(value: i16) -> Self {
+        Self((value as i32) * SCALE)
+    }
+
+    #[inline]
+    fn to_int(self) -> i16 {
+        (self.0 / SCALE) as i16
+    }
 }
 
 impl From<Fp> for f32 {
+    #[inline]
     fn from(fp: Fp) -> Self {
         fp.to_float()
     }
 }
 
 impl From<Fp> for i16 {
+    #[inline]
     fn from(fp: Fp) -> Self {
         fp.to_int()
     }
 }
 
+impl From<Fp> for i32 {
+    #[inline]
+    fn from(fp: Fp) -> Self {
+        fp.to_int() as i32
+    }
+}
+
 impl From<f32> for Fp {
+    #[inline]
     fn from(v: f32) -> Self {
         Fp::from_float(v)
     }
 }
 
 impl From<i16> for Fp {
+    #[inline]
     fn from(v: i16) -> Self {
         Fp::from_int(v)
     }
@@ -88,7 +141,8 @@ impl fmt::Display for Fp {
 impl Mul<Fp> for Fp {
     type Output = Fp;
 
-    fn mul(self, rhs: Fp) -> Self::Output {
+    #[inline]
+    fn mul(self, rhs: Fp) -> Self {
         Fp((((self.0 as i64) * (rhs.0 as i64)) / (SCALE as i64)) as i32)
     }
 }
@@ -96,7 +150,8 @@ impl Mul<Fp> for Fp {
 impl Div<Fp> for Fp {
     type Output = Fp;
 
-    fn div(self, rhs: Fp) -> Self::Output {
+    #[inline]
+    fn div(self, rhs: Fp) -> Self {
         if rhs.0 == 0 {
             panic!("division by zero");
         }
@@ -116,7 +171,8 @@ impl Div<Fp> for Fp {
 impl Sub<Fp> for Fp {
     type Output = Fp;
 
-    fn sub(self, rhs: Fp) -> Self::Output {
+    #[inline]
+    fn sub(self, rhs: Fp) -> Self {
         Fp(self.0 - rhs.0)
     }
 }
@@ -124,12 +180,14 @@ impl Sub<Fp> for Fp {
 impl Add<Fp> for Fp {
     type Output = Fp;
 
-    fn add(self, rhs: Fp) -> Self::Output {
+    #[inline]
+    fn add(self, rhs: Fp) -> Self {
         Fp(self.0 + rhs.0)
     }
 }
 
 impl AddAssign for Fp {
+    #[inline]
     fn add_assign(&mut self, other: Self) {
         self.0 += other.0;
     }
@@ -138,7 +196,8 @@ impl AddAssign for Fp {
 impl Neg for Fp {
     type Output = Self;
 
-    fn neg(self) -> Self::Output {
+    #[inline]
+    fn neg(self) -> Self {
         Fp(-self.0)
     }
 }
@@ -146,6 +205,7 @@ impl Neg for Fp {
 impl Div<Fp> for i16 {
     type Output = Fp;
 
+    #[inline]
     fn div(self, rhs: Fp) -> Self::Output {
         eprintln!("hello {:?} / {:?}", (self as i32) * SCALE, rhs.0);
         Fp((self as i32) * SCALE / rhs.0 * SCALE)
@@ -155,6 +215,7 @@ impl Div<Fp> for i16 {
 impl Mul<Fp> for i16 {
     type Output = Fp;
 
+    #[inline]
     fn mul(self, rhs: Fp) -> Self::Output {
         Fp((self as i32) * rhs.0)
     }
@@ -163,6 +224,7 @@ impl Mul<Fp> for i16 {
 impl Mul<i16> for Fp {
     type Output = Fp;
 
+    #[inline]
     fn mul(self, rhs: i16) -> Self::Output {
         Fp(self.0 * (rhs as i32))
     }
