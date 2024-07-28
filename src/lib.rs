@@ -284,11 +284,4 @@ mod tests {
         let i: i16 = result.into();
         assert_eq!(i, 990);
     }
-
-    #[test]
-    fn from_int() {
-        let result = 99 * Fp::from(10);
-        let i: i16 = result.into();
-        assert_eq!(i, 990);
-    }
 }
