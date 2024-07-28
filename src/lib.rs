@@ -236,50 +236,53 @@ mod tests {
 
     #[test]
     fn add() {
-        let result = Fp::from_int(2) + Fp::from_int(2);
+        let result = Fp::from(2) + Fp::from(2);
         assert_eq!(result.0, 4 * SCALE);
     }
 
     #[test]
     fn mul() {
-        let result = Fp::from_int(3) * Fp::from_int(2);
+        let result = Fp::from(3) * Fp::from(2);
         assert_eq!(result.0, 6 * SCALE);
     }
 
     #[test]
     fn div() {
-        let result = Fp::from_int(99) / Fp::from_int(3);
+        let result = Fp::from(99) / Fp::from(3);
         assert_eq!(result.0, 33 * SCALE);
     }
 
     #[test]
     fn div_bigger_number() {
-        let result = Fp::from_int(30000) / Fp::from_int(12);
+        let result = Fp::from(30000) / Fp::from(12);
         assert_eq!(result.0, 2500 * SCALE);
     }
 
     #[test]
     fn sub() {
-        let result = Fp::from_int(-42) + Fp::from_int(43);
+        let result = Fp::from(-42) + Fp::from(43);
         assert_eq!(result.0, 1 * SCALE);
     }
 
     #[test]
     fn div_int() {
-        let result = 400 / Fp::from_int(10);
-        assert_eq!(result.to_int(), 40);
+        let result = 400 / Fp::from(10);
+        let i: i32 = result.into();
+        assert_eq!(i, 40);
     }
 
     #[test]
     fn mul_int() {
-        let result = 99 * Fp::from_int(10);
-        assert_eq!(result.to_int(), 990);
+        let result = 99 * Fp::from(10);
+        let i: i16 = result.into();
+        assert_eq!(i, 990);
     }
 
     #[test]
     fn from_float() {
         let result = 99 * Fp::from(10.0);
-        assert_eq!(result.to_int(), 990);
+        let i: i16 = result.into();
+        assert_eq!(i, 990);
     }
 
     #[test]
