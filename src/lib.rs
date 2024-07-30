@@ -3,10 +3,16 @@
  * Licensed under the MIT License. See LICENSE file for details.
  */
 use core::fmt;
-use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use core::ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign};
+
+use crate::lookup_slices::{ACOS_TABLE, ASIN_TABLE, COS_TABLE, SIN_TABLE};
+
+mod lookup_slices;
+mod test;
 
 /// The scaling factor used for fixed-point arithmetic.
-pub const SCALE: i32 = 0x10000;
+pub const SHIFT: i32 = 16;
+pub const SCALE: i32 = 1 << SHIFT;
 pub const SCALE_I64: i64 = SCALE as i64;
 pub const FSCALE: f32 = SCALE as f32;
 
@@ -14,7 +20,37 @@ pub const FSCALE: f32 = SCALE as f32;
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct Fp(pub i32);
 
+#[inline]
+fn lookup_normalized(slice: &[Fp], fraction: Fp) -> Fp {
+    let frac_index = fraction * (slice.len() as i16);
+    let index: usize = frac_index.floor().into();
+    let index = index.min(slice.len() - 1);
+    slice[index]
+}
+
+#[inline]
+fn lookup_unit_interval(slice: &[Fp], unit_interval: Fp) -> Fp {
+    if unit_interval < Fp::neg_one() || unit_interval > Fp::one() {
+        panic!("illegal range for unit interval lookup {unit_interval} must be between -1 to 1");
+    }
+    let num_entries = slice.len() as i16;
+    let frac_index = (unit_interval + Fp::one()) * num_entries / Fp::from(2);
+    let index: usize = frac_index.floor().into();
+    let index = index.min(slice.len() - 1);
+    slice[index]
+}
+
+fn lookup_radian(slice: &[Fp], radians: Fp) -> Fp {
+    let radians_modulo = radians % Fp::TAU;
+    let normalized_slice_index = radians_modulo / Fp::TAU;
+    lookup_normalized(slice, normalized_slice_index)
+}
+
 impl Fp {
+    pub const FRAC_PI_2: Fp = Fp(SCALE * 1570 / 1000); // π/2 ≈ 1.570
+    pub const PI: Fp = Fp(SCALE * 3141 / 1000); // π ≈ 3.141
+    pub const TAU: Fp = Fp(SCALE * 6283 / 1000); // 2π ≈ 6.283
+
     /// Returns the constant `Fp` value for one.
     ///
     /// # Examples
@@ -67,6 +103,42 @@ impl Fp {
         Self(0)
     }
 
+    #[inline]
+    // Clamp value to the range [-1, 1]
+    pub fn normalize(self) -> Self {
+        if self.0 < -SCALE {
+            Fp(-SCALE)
+        } else if self.0 > SCALE {
+            Fp(SCALE)
+        } else {
+            self
+        }
+    }
+
+    // Method to perform floor operation
+    fn floor(self) -> Self {
+        Self(self.0 & 0xFFFF0000u32 as i32)
+    }
+
+    #[inline]
+    pub fn sin(self) -> Self {
+        lookup_radian(&SIN_TABLE, self)
+    }
+    #[inline]
+    pub fn asin(self) -> Self {
+        lookup_unit_interval(&ASIN_TABLE, self)
+    }
+
+    #[inline]
+    pub fn cos(self) -> Self {
+        lookup_radian(&COS_TABLE, self)
+    }
+
+    #[inline]
+    pub fn acos(self) -> Self {
+        lookup_unit_interval(&ACOS_TABLE, self)
+    }
+
     pub const MIN: Fp = Fp(i32::MIN);
     pub const MAX: Fp = Fp(i32::MAX);
 
@@ -109,6 +181,36 @@ impl From<Fp> for i32 {
     #[inline]
     fn from(fp: Fp) -> Self {
         fp.to_int() as i32
+    }
+}
+
+impl From<Fp> for usize {
+    #[inline]
+    fn from(fp: Fp) -> Self {
+        if fp.0 < 0 {
+            panic!("Cannot convert a negative Fp value to usize: {fp}");
+        }
+        fp.to_int() as usize
+    }
+}
+
+impl From<Fp> for u16 {
+    #[inline]
+    fn from(fp: Fp) -> Self {
+        if fp.0 < 0 {
+            panic!("Cannot convert a negative Fp value to u16: {fp}");
+        }
+        fp.to_int() as u16
+    }
+}
+
+impl From<Fp> for u32 {
+    #[inline]
+    fn from(fp: Fp) -> Self {
+        if fp.0 < 0 {
+            panic!("Cannot convert a negative Fp value to u32: {fp}");
+        }
+        fp.to_int() as u32
     }
 }
 
@@ -193,6 +295,13 @@ impl AddAssign for Fp {
     }
 }
 
+impl SubAssign for Fp {
+    #[inline]
+    fn sub_assign(&mut self, other: Self) {
+        self.0 -= other.0;
+    }
+}
+
 impl Neg for Fp {
     type Output = Self;
 
@@ -207,7 +316,6 @@ impl Div<Fp> for i16 {
 
     #[inline]
     fn div(self, rhs: Fp) -> Self::Output {
-        eprintln!("hello {:?} / {:?}", (self as i32) * SCALE, rhs.0);
         Fp((self as i32) * SCALE / rhs.0 * SCALE)
     }
 }
@@ -225,63 +333,16 @@ impl Mul<i16> for Fp {
     type Output = Fp;
 
     #[inline]
-    fn mul(self, rhs: i16) -> Self::Output {
+    fn mul(self, rhs: i16) -> Self {
         Fp(self.0 * (rhs as i32))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl Rem for Fp {
+    type Output = Self;
 
-    #[test]
-    fn add() {
-        let result = Fp::from(2) + Fp::from(2);
-        assert_eq!(result.0, 4 * SCALE);
-    }
-
-    #[test]
-    fn mul() {
-        let result = Fp::from(3) * Fp::from(2);
-        assert_eq!(result.0, 6 * SCALE);
-    }
-
-    #[test]
-    fn div() {
-        let result = Fp::from(99) / Fp::from(3);
-        assert_eq!(result.0, 33 * SCALE);
-    }
-
-    #[test]
-    fn div_bigger_number() {
-        let result = Fp::from(30000) / Fp::from(12);
-        assert_eq!(result.0, 2500 * SCALE);
-    }
-
-    #[test]
-    fn sub() {
-        let result = Fp::from(-42) + Fp::from(43);
-        assert_eq!(result.0, 1 * SCALE);
-    }
-
-    #[test]
-    fn div_int() {
-        let result = 400 / Fp::from(10);
-        let i: i32 = result.into();
-        assert_eq!(i, 40);
-    }
-
-    #[test]
-    fn mul_int() {
-        let result = 99 * Fp::from(10);
-        let i: i16 = result.into();
-        assert_eq!(i, 990);
-    }
-
-    #[test]
-    fn from_float() {
-        let result = 99 * Fp::from(10.0);
-        let i: i16 = result.into();
-        assert_eq!(i, 990);
+    #[inline]
+    fn rem(self, rhs: Self) -> Self {
+        Self(self.0 % rhs.0)
     }
 }
