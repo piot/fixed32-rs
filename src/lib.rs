@@ -2,17 +2,17 @@
  * Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
  * Licensed under the MIT License. See LICENSE file for details.
  */
+use crate::lookup_slices::{ACOS_TABLE, ASIN_TABLE, COS_TABLE, SIN_TABLE};
+use core::cmp::Ordering;
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign};
-
-use crate::lookup_slices::{ACOS_TABLE, ASIN_TABLE, COS_TABLE, SIN_TABLE};
 
 mod lookup_slices;
 mod test;
 
 /// A fixed-point number with 16.16 format.
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
-pub struct Fp(pub i32);
+pub struct Fp(i32);
 
 impl Fp {
     /// The scaling factor used for fixed-point arithmetic.
@@ -22,9 +22,29 @@ impl Fp {
     const HALF_SCALE: i32 = Self::SCALE / 2;
     pub const SCALE_I64: i64 = Self::SCALE as i64;
     pub const FSCALE: f32 = Self::SCALE as f32;
-    pub const FRAC_PI_2: Fp = Fp(Self::SCALE * 1570 / 1000); // π/2 ≈ 1.570
-    pub const PI: Fp = Fp(Self::SCALE * 3141 / 1000); // π ≈ 3.141
-    pub const TAU: Fp = Fp(Self::SCALE * 6283 / 1000); // 2π ≈ 6.283
+    pub const FRAC_PI_2: Fp = Self(Self::SCALE * 1570 / 1000); // π/2 ≈ 1.570
+    pub const PI: Fp = Self(Self::SCALE * 3141 / 1000); // π ≈ 3.141
+    pub const TAU: Fp = Self(Self::SCALE * 6283 / 1000); // 2π ≈ 6.283
+
+    /// Creates a new `Fp` instance from a raw integer value.
+    ///
+    /// # Warning
+    ///
+    /// This constructor should be used with caution. It directly creates
+    /// an `Fp` instance from a raw integer without any validation or
+    /// scaling logic. It is almost always preferable to use higher-level
+    /// constructors or conversion traits like `From<T>` to ensure that the
+    /// fixed-point values are correctly initialized.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fixed32::Fp;
+    /// let fp = Fp::from_raw(100);
+    /// ```
+    pub fn from_raw(raw: i32) -> Self {
+        Self(raw)
+    }
 
     /// Returns the constant `Fp` value for one.
     ///
@@ -37,19 +57,6 @@ impl Fp {
     #[inline]
     pub fn one() -> Self {
         Self(Self::SCALE)
-    }
-
-    /// Checks if the `Fp` value is zero.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fixed32::Fp;
-    /// assert!(Fp::zero().is_zero());
-    /// ```
-    #[inline]
-    pub fn is_zero(self) -> bool {
-        self.0 == 0
     }
 
     /// Returns the constant `Fp` value for negative one.
@@ -78,19 +85,33 @@ impl Fp {
         Self(0)
     }
 
+    /// Checks if the `Fp` value is zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fixed32::Fp;
+    /// assert!(Fp::zero().is_zero());
+    /// ```
+    #[inline]
+    pub fn is_zero(self) -> bool {
+        self.0 == 0
+    }
+
     #[inline]
     // Clamp value to the range [-1, 1]
     pub fn normalize(self) -> Self {
         if self.0 < -Self::SCALE {
-            Fp(-Self::SCALE)
+            Self(-Self::SCALE)
         } else if self.0 > Self::SCALE {
-            Fp(Self::SCALE)
+            Self(Self::SCALE)
         } else {
             self
         }
     }
 
     // Method to perform floor operation
+    #[inline]
     fn floor(self) -> Self {
         Self(self.0 & 0xFFFF0000u32 as i32)
     }
@@ -162,12 +183,42 @@ impl Fp {
         guess
     }
 
-    pub const MIN: Fp = Fp(i32::MIN);
-    pub const MAX: Fp = Fp(i32::MAX);
+    /// Returns the raw integer value from the `Fp`.
+    ///
+    /// This method retrieves the underlying raw scaled value stored in the
+    /// `Fp` instance. The returned value is the raw integer that represents
+    /// the scaled fixed-point number.
+    ///
+    /// # Warning
+    ///
+    /// Directly using the raw value returned by this method should be avoided
+    /// unless absolutely necessary. It is generally preferable to use higher-level
+    /// methods or conversion traits like `From<T>` and `into()` for conversions,
+    /// which handle scaling and ensure correctness. Using `inner()` may expose
+    /// the raw value in a way that bypasses intended abstractions and checks,
+    /// potentially leading to incorrect usage.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fixed32::Fp;
+    /// let fp = Fp::from_raw(100);
+    /// let raw_value = fp.inner();
+    ///
+    /// // Preferred conversion using From<T> trait
+    /// let value_from_fp: i32 = fp.into();
+    /// ```
+    #[inline]
+    pub fn inner(self) -> i32 {
+        self.0
+    }
+
+    pub const MIN: Self = Self(i32::MIN);
+    pub const MAX: Self = Self(i32::MAX);
 
     #[inline]
     fn from_float(value: f32) -> Self {
-        Fp((value * Self::FSCALE) as i32)
+        Self((value * Self::FSCALE) as i32)
     }
 
     #[inline]
@@ -240,14 +291,14 @@ impl From<Fp> for u32 {
 impl From<f32> for Fp {
     #[inline]
     fn from(v: f32) -> Self {
-        Fp::from_float(v)
+        Self::from_float(v)
     }
 }
 
 impl From<i16> for Fp {
     #[inline]
     fn from(v: i16) -> Self {
-        Fp::from_int(v)
+        Self::from_int(v)
     }
 }
 
@@ -268,7 +319,7 @@ impl Mul<Fp> for Fp {
 
     #[inline]
     fn mul(self, rhs: Fp) -> Self {
-        Fp((((self.0 as i64) * (rhs.0 as i64)) / (Self::SCALE as i64)) as i32)
+        Self((((self.0 as i64) * (rhs.0 as i64)) / (Self::SCALE as i64)) as i32)
     }
 }
 
@@ -298,7 +349,7 @@ impl Sub<Fp> for Fp {
 
     #[inline]
     fn sub(self, rhs: Fp) -> Self {
-        Fp(self.0 - rhs.0)
+        Self(self.0 - rhs.0)
     }
 }
 
@@ -307,7 +358,7 @@ impl Add<Fp> for Fp {
 
     #[inline]
     fn add(self, rhs: Fp) -> Self {
-        Fp(self.0 + rhs.0)
+        Self(self.0 + rhs.0)
     }
 }
 
@@ -330,7 +381,7 @@ impl Neg for Fp {
 
     #[inline]
     fn neg(self) -> Self {
-        Fp(-self.0)
+        Self(-self.0)
     }
 }
 
@@ -357,7 +408,7 @@ impl Mul<i16> for Fp {
 
     #[inline]
     fn mul(self, rhs: i16) -> Self {
-        Fp(self.0 * (rhs as i32))
+        Self(self.0 * (rhs as i32))
     }
 }
 
@@ -367,6 +418,18 @@ impl Rem for Fp {
     #[inline]
     fn rem(self, rhs: Self) -> Self {
         Self(self.0 % rhs.0)
+    }
+}
+
+impl PartialOrd<i16> for Fp {
+    fn partial_cmp(&self, other: &i16) -> Option<Ordering> {
+        Some(self.to_int().cmp(other))
+    }
+}
+
+impl PartialEq<i16> for Fp {
+    fn eq(&self, other: &i16) -> bool {
+        self.to_int() == *other
     }
 }
 

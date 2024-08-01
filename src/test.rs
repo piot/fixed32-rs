@@ -227,3 +227,31 @@ fn test_abs_negative() {
     let result = value.abs();
     assert_eq!(result, Fp::from(5)); // Absolute value of -5 should be 5
 }
+
+#[test]
+fn test_int16_less_than() {
+    let value = Fp::from(-5);
+    let result = value < -4;
+    assert!(result);
+}
+
+#[test]
+fn test_int16_greater_than() {
+    let value = Fp::from(-5);
+    let result = value > -6;
+    assert!(result);
+}
+
+#[test]
+fn test_int16_equal() {
+    let value = Fp::from(-42);
+    let result = value == -42;
+    assert!(result);
+}
+
+#[test]
+fn test_int16_not_equal() {
+    let value = Fp::from(-42);
+    let result = value != 90;
+    assert!(result);
+}
