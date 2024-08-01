@@ -28,13 +28,14 @@ impl Fp {
 
     /// Creates a new `Fp` instance from a raw integer value.
     ///
-    /// # Warning
+    /// <div class="warning">
     ///
-    /// This constructor should be used with caution. It directly creates
+    ///  **Warning:** This constructor should be used with caution. It directly creates
     /// an `Fp` instance from a raw integer without any validation or
     /// scaling logic. It is almost always preferable to use higher-level
     /// constructors or conversion traits like `From<T>` to ensure that the
     /// fixed-point values are correctly initialized.
+    /// </div>
     ///
     /// # Example
     ///
@@ -189,14 +190,16 @@ impl Fp {
     /// `Fp` instance. The returned value is the raw integer that represents
     /// the scaled fixed-point number.
     ///
-    /// # Warning
+    /// <div class="warning">
     ///
-    /// Directly using the raw value returned by this method should be avoided
+    ///  **Warning:** Directly using the raw value returned by this method should be avoided
     /// unless absolutely necessary. It is generally preferable to use higher-level
     /// methods or conversion traits like `From<T>` and `into()` for conversions,
     /// which handle scaling and ensure correctness. Using `inner()` may expose
     /// the raw value in a way that bypasses intended abstractions and checks,
     /// potentially leading to incorrect usage.
+    ///
+    /// </div>
     ///
     /// # Example
     ///
