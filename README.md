@@ -20,7 +20,7 @@ Fixed32 is a Rust crate that provides a 32-bit fixed-point number type, designed
 To use `fixed32` in your Rust project, add it to your `Cargo.toml`:
 
 ```toml
-fixed32 = "0.0.10"
+fixed32 = "0.0.14"
 ```
 
 ## License
