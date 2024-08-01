@@ -1,7 +1,8 @@
 /*
  * Copyright (c) Peter Bjorklund. All rights reserved. https://github.com/piot/fixed32-rs
- * Licensed under the MIT License. See LICENSE file for details.
+ * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
+
 use crate::lookup_slices::{ACOS_TABLE, ASIN_TABLE, COS_TABLE, SIN_TABLE};
 use core::cmp::Ordering;
 use core::fmt;
