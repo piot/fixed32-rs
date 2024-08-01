@@ -423,13 +423,13 @@ impl Rem for Fp {
 
 impl PartialOrd<i16> for Fp {
     fn partial_cmp(&self, other: &i16) -> Option<Ordering> {
-        Some(self.to_int().cmp(other))
+        Some(self.0.cmp(&(*other as i32 * Self::SCALE)))
     }
 }
 
 impl PartialEq<i16> for Fp {
     fn eq(&self, other: &i16) -> bool {
-        self.to_int() == *other
+        self.0 == (*other as i32 * Self::SCALE)
     }
 }
 
