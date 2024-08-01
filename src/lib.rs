@@ -42,7 +42,7 @@ impl Fp {
     /// use fixed32::Fp;
     /// let fp = Fp::from_raw(100);
     /// ```
-    pub fn from_raw(raw: i32) -> Self {
+    pub const fn from_raw(raw: i32) -> Self {
         Self(raw)
     }
 
@@ -55,7 +55,7 @@ impl Fp {
     /// assert_eq!(1, Fp::one().into());
     /// ```
     #[inline]
-    pub fn one() -> Self {
+    pub const fn one() -> Self {
         Self(Self::SCALE)
     }
 
@@ -68,7 +68,7 @@ impl Fp {
     /// assert_eq!(<Fp as Into<i16>>::into(Fp::neg_one()), -1);
     /// ```
     #[inline]
-    pub fn neg_one() -> Self {
+    pub const fn neg_one() -> Self {
         Self(-Self::SCALE)
     }
 
@@ -81,7 +81,7 @@ impl Fp {
     /// assert_eq!(<Fp as Into<i16>>::into(Fp::zero()), 0);
     /// ```
     #[inline]
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self(0)
     }
 
@@ -94,13 +94,13 @@ impl Fp {
     /// assert!(Fp::zero().is_zero());
     /// ```
     #[inline]
-    pub fn is_zero(self) -> bool {
+    pub const fn is_zero(self) -> bool {
         self.0 == 0
     }
 
     #[inline]
     // Clamp value to the range [-1, 1]
-    pub fn normalize(self) -> Self {
+    pub const fn normalize(self) -> Self {
         if self.0 < -Self::SCALE {
             Self(-Self::SCALE)
         } else if self.0 > Self::SCALE {
@@ -112,12 +112,12 @@ impl Fp {
 
     // Method to perform floor operation
     #[inline]
-    fn floor(self) -> Self {
+    pub const fn floor(self) -> Self {
         Self(self.0 & 0xFFFF0000u32 as i32)
     }
 
     #[inline]
-    pub fn ceil(self) -> Self {
+    pub const fn ceil(self) -> Self {
         let remainder = self.0 & (Self::SCALE - 1);
         if remainder == 0 {
             self
@@ -127,7 +127,7 @@ impl Fp {
     }
 
     #[inline]
-    pub fn round(self) -> Self {
+    pub const fn round(self) -> Self {
         let rounded_value = (self.0 + Self::HALF_SCALE) & !(Self::SCALE - 1);
         Self(rounded_value)
     }
@@ -163,7 +163,7 @@ impl Fp {
     }
 
     #[inline]
-    pub fn abs(self) -> Self {
+    pub const fn abs(self) -> Self {
         Self(self.0.abs())
     }
     #[inline]
@@ -209,7 +209,7 @@ impl Fp {
     /// let value_from_fp: i32 = fp.into();
     /// ```
     #[inline]
-    pub fn inner(self) -> i32 {
+    pub const fn inner(self) -> i32 {
         self.0
     }
 
@@ -227,12 +227,12 @@ impl Fp {
     }
 
     #[inline]
-    fn from_int(value: i16) -> Self {
+    const fn from_int(value: i16) -> Self {
         Self((value as i32) * Self::SCALE)
     }
 
     #[inline]
-    fn to_int(self) -> i16 {
+    const fn to_int(self) -> i16 {
         (self.0 / Self::SCALE) as i16
     }
 }
@@ -453,6 +453,7 @@ fn lookup_unit_interval(slice: &[Fp], unit_interval: Fp) -> Fp {
     slice[index]
 }
 
+#[inline]
 fn lookup_radian(slice: &[Fp], radians: Fp) -> Fp {
     let radians_modulo = radians % Fp::TAU;
     let normalized_slice_index = radians_modulo / Fp::TAU;
