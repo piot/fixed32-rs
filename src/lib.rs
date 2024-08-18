@@ -174,15 +174,28 @@ impl Fp {
             panic!("negative numbers are undefined for sqrt() {self}");
         }
 
-        let mut guess = self;
-        const TWO: Fp = Fp(Fp::SCALE * 2);
-        const TOLERANCE: i32 = 1;
-
-        while (guess * guess - self).abs().0 > TOLERANCE {
-            guess = (guess + self / guess) / TWO;
+        if self.0 == 0 {
+            return self;
         }
 
-        guess
+        const MAX_ITERATIONS: usize = 10;
+        const TOLERANCE: i32 = 1;
+        const TWO: Fp = Fp(Fp::SCALE * 2);
+
+        let mut guess = self / TWO;
+
+        for _ in 0..MAX_ITERATIONS {
+            let next_guess = (guess + self / guess) / TWO;
+
+            // Check if the change is within the tolerance level
+            if (next_guess - guess).abs().0 <= TOLERANCE {
+                return next_guess;
+            }
+
+            guess = next_guess;
+        }
+
+        guess // Return the last guess if convergence wasn't fully reached
     }
 
     /// Returns the raw integer value from the `Fp`.
