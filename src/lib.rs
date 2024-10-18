@@ -187,7 +187,10 @@ impl Fp {
     #[inline]
     #[must_use]
     pub fn sqrt(self) -> Self {
-        assert!(self.0 >= 0, "negative numbers are undefined for sqrt() {self}");
+        assert!(
+            self.0 >= 0,
+            "negative numbers are undefined for sqrt() {self}"
+        );
 
         if self.0 == 0 {
             return self;
