@@ -1,3 +1,5 @@
 /target
 Cargo.lock
 .idea
+scripts/precalculate/target
+scripts/target

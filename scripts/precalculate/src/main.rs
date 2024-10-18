@@ -3,7 +3,6 @@
  * Licensed under the MIT License. See LICENSE in the project root for license information.
  */
 
-
 use std::f64::consts::TAU;
 
 // Fixed-point scale factor
@@ -55,6 +54,25 @@ fn compute_lookup_tables() -> LookupTables {
     }
 }
 
+fn format_with_underscores(n: i32) -> String {
+    let mut s = n.to_string();
+    let is_negative = s.starts_with('-');
+    if is_negative {
+        s = s.trim_start_matches('-').to_string();
+    }
+
+    let mut chars: Vec<char> = s.chars().rev().collect();
+    for i in (3..chars.len()).step_by(4) {
+        chars.insert(i, '_');
+    }
+
+    let formatted: String = chars.iter().rev().collect();
+    if is_negative {
+        format!("-{}", formatted)
+    } else {
+        formatted
+    }
+}
 
 // Print the lookup tables with 10 values per line
 fn print_lookup_table(name: &str, table: &[i32]) {
@@ -64,7 +82,11 @@ fn print_lookup_table(name: &str, table: &[i32]) {
         if last_in_line && i > 0 {
             println!();
         }
-        print!("{}Fp({}),", if last_in_line { "    " } else { " " }, value);
+        print!(
+            "{}Fp({}),",
+            if last_in_line { "    " } else { " " },
+            format_with_underscores(*value)
+        );
     }
     println!("\n];");
 }
