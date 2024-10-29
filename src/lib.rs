@@ -187,7 +187,7 @@ impl Fp {
     #[inline]
     #[must_use]
     pub const fn signum(self) -> Self {
-        Self(self.0.signum())
+        Self(self.0.signum() * Self::SCALE)
     }
 
     #[inline]
