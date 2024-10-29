@@ -186,6 +186,12 @@ impl Fp {
 
     #[inline]
     #[must_use]
+    pub const fn signum(self) -> Self {
+        Self(self.0.signum())
+    }
+
+    #[inline]
+    #[must_use]
     pub fn sqrt(self) -> Self {
         assert!(
             self.0 >= 0,
