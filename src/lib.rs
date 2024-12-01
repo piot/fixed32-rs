@@ -369,13 +369,13 @@ impl TryFrom<i32> for Fp {
 
 impl fmt::Debug for Fp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "fp:{:.3} ({})", (self.0 as f32) / Self::FSCALE, self.0)
+        write!(f, "fp:{:.4} ({})", (self.0 as f32) / Self::FSCALE, self.0)
     }
 }
 
 impl fmt::Display for Fp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.2}", (self.0 as f32) / Self::FSCALE)
+        write!(f, "{:.3}", (self.0 as f32) / Self::FSCALE)
     }
 }
 
