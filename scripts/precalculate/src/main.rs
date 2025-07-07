@@ -14,11 +14,17 @@ fn to_fixed_point(value: f64) -> i32 {
     (value * SCALE as f64).round() as i32
 }
 
+// Function to convert fixed-point to floating-point (for verification)
+fn from_fixed_point(x: i32) -> f64 {
+    x as f64 / SCALE as f64
+}
+
 struct LookupTables {
     sin_table: Vec<i32>,
     cos_table: Vec<i32>,
     asin_table: Vec<i32>,
     acos_table: Vec<i32>,
+    atan2_table: Vec<i32>,
 }
 
 fn compute_lookup_tables() -> LookupTables {
@@ -46,11 +52,48 @@ fn compute_lookup_tables() -> LookupTables {
         acos_table.push(to_fixed_point(acos_value));
     }
 
+    let mut atan2_table = Vec::with_capacity(NUM_ENTRIES);
+
+    const NUM_OCTANTS: usize = 8;
+    const RATIOS_PER_OCTANT: usize = 32;
+    const NUM_ENTRIES: usize = NUM_OCTANTS * RATIOS_PER_OCTANT;
+
+    for octant in 0..NUM_OCTANTS {
+        for ratio in 0..RATIOS_PER_OCTANT {
+            // Calculate the ratio as fixed-point
+            let ratio_fp = (ratio as i32 * SCALE) >> 5; // ratio / 32 * SCALE
+
+            // Determine (x, y) based on the octant
+            let (x, y) = match octant {
+                0 => (SCALE, ratio_fp),
+                1 => (ratio_fp, SCALE),
+                2 => (-ratio_fp, SCALE),
+                3 => (-SCALE, ratio_fp),
+                4 => (-SCALE, -ratio_fp),
+                5 => (-ratio_fp, -SCALE),
+                6 => (ratio_fp, -SCALE),
+                7 => (SCALE, -ratio_fp),
+                _ => unreachable!(),
+            };
+
+            // Convert fixed-point to floating-point for atan2 calculation
+            let x_f = from_fixed_point(x);
+            let y_f = from_fixed_point(y);
+
+            // Compute the angle in radians
+            let angle = y_f.atan2(x_f); // Range: -PI to PI
+
+            // Convert angle to fixed-point and store in the table
+            atan2_table.push(to_fixed_point(angle));
+        }
+    }
+
     LookupTables {
         sin_table,
         cos_table,
         asin_table,
         acos_table,
+        atan2_table,
     }
 }
 
@@ -100,4 +143,5 @@ fn main() {
     print_lookup_table("COS_TABLE", &tables.cos_table);
     print_lookup_table("ASIN_TABLE", &tables.asin_table);
     print_lookup_table("ACOS_TABLE", &tables.acos_table);
+    print_lookup_table("ATAN2_TABLE", &tables.atan2_table);
 }

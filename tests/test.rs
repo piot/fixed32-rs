@@ -4,6 +4,7 @@
  */
 
 use fixed32::Fp;
+
 #[test]
 fn add() {
     let result = Fp::from(2) + Fp::from(2);
@@ -159,6 +160,64 @@ fn sqrt_negative() {
     let _ = value.sqrt();
 }
 
+/// Build an Fp from the raw 16.16 bits (1 == 1/2^16).
+#[inline]
+fn from_bits(v: i32) -> Fp {
+    Fp::from_raw(v)
+}
+
+#[test]
+fn sqrt_tiny_raw_lsb() {
+    // Input = 1 raw bit = 1/65536  →  sqrt ≈ 1/256  → raw = 256
+    let tiny = from_bits(1);
+    let result = tiny.sqrt();
+    let expected = from_bits(256);
+    assert_eq!(
+        result, expected,
+        "sqrt(1/2^16) = 1/2^8 exactly; got {:?}, want {:?}",
+        result, expected
+    );
+}
+
+#[test]
+fn sqrt_small_fraction() {
+    // Input = 1/65536   (tiny)
+    // Input = 4/65536   (4 LSBs) → sqrt ≈ 0.0078125; raw ≈ 512
+    let small = from_bits(4);
+    let result = small.sqrt();
+    let expected = from_bits(512);
+    assert!(
+        (result - expected).inner().abs() <= 1,
+        "sqrt(4/2^16) ≈ 2/2^8; got {:?}, want {:?} (±1 LSB)",
+        result,
+        expected
+    );
+}
+
+#[test]
+fn sqrt_random_precision() {
+    // Pick a variety of small and medium raw fixed-point inputs:
+    let raw_inputs = [1, 2, 3, 10, 100, 1_000, 10_000, 42_000];
+    for &xf in &raw_inputs {
+        let x = from_bits(xf);
+        let result = x.sqrt();
+
+        // Compute expected √ based on the quantized input:
+        //  expected_bits = round( sqrt(xf/2^16) * 2^16 )
+        let expected_bits = (((xf as f64) / 65_536.0).sqrt() * 65_536.0).round() as i32;
+        let expected = from_bits(expected_bits);
+
+        let diff = (result - expected).inner().abs();
+        assert!(
+            diff <= 1,
+            "√(raw={xf}) ≈ {expected_bits} bits; got {:?} ({:?} bits), diff = {} LSB",
+            result,
+            result.inner(),
+            diff
+        );
+    }
+}
+
 #[test]
 fn ceil_positive() {
     let value = Fp::from(5);
@@ -255,3 +314,52 @@ fn int16_not_equal() {
     let result = value != 90;
     assert!(result);
 }
+
+/*
+#[test]
+fn test_atan2_cardinal() {
+    const EPSILON: i32 = 100; // Allow small fixed-point rounding differences
+
+    // Right (0°)
+    assert!((Fp::atan2(Fp::zero(), Fp::one()) - Fp::zero()).abs() < Fp::from_raw(EPSILON));
+    // Up (90°)
+    assert!((Fp::atan2(Fp::one(), Fp::zero()) - Fp::FRAC_PI_2).abs() < Fp::from_raw(EPSILON));
+    // Left (180°)
+    assert!((Fp::atan2(Fp::zero(), -Fp::one()) - Fp::PI).abs() < Fp::from_raw(EPSILON));
+    // Down (270°)
+    assert!((Fp::atan2(-Fp::one(), Fp::zero()) - (-Fp::FRAC_PI_2)).abs() < Fp::from_raw(EPSILON));
+}
+
+#[test]
+fn test_atan2_diagonals() {
+    const EPSILON: i32 = 100;
+    let quarter_pi = Fp::FRAC_PI_2 / Fp::from(2);
+
+    let y = Fp::one();
+    let x = Fp::one();
+
+    println!("Input:");
+    println!("  x={:?}, y={:?}", x, y);
+    println!("  quarter_pi={:?}", quarter_pi);
+
+    let result = Fp::atan2(y, x);
+
+    println!("ATAN2_TABLE[31]={:?}", lookup_slices::ATAN2_TABLE[31]);
+    println!("ATAN2_TABLE[0]={:?}", lookup_slices::ATAN2_TABLE[0]);
+    println!("result={:?}", result);
+    println!("abs diff={}", (result - quarter_pi).abs());
+
+    assert!((result - quarter_pi).abs() < Fp::from_raw(EPSILON));
+}
+
+#[test]
+fn test_atan2_edge_cases() {
+    // Origin (0,0) should return 0
+    assert_eq!(Fp::atan2(Fp::zero(), Fp::zero()), Fp::zero());
+
+    // Very small values near zero
+    let tiny = Fp::from_raw(1);
+    assert!(Fp::atan2(tiny, Fp::one()).abs() < Fp::from_raw(100));
+    assert!(Fp::atan2(Fp::one(), tiny) - Fp::FRAC_PI_2 < Fp::from_raw(100));
+}
+        */

@@ -8,7 +8,7 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign};
 
-mod lookup_slices;
+pub mod lookup_slices;
 
 /// A fixed-point number with 16.16 format.
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
@@ -18,6 +18,7 @@ impl Fp {
     /// The scaling factor used for fixed-point arithmetic.
     pub const SHIFT: i32 = 16;
     pub const SCALE: i32 = 1 << Self::SHIFT;
+    pub const TOTAL_BITS: i32 = 32;
 
     const HALF_SCALE: i32 = Self::SCALE / 2;
     pub const SCALE_I64: i64 = Self::SCALE as i64;
@@ -190,6 +191,7 @@ impl Fp {
         Self(self.0.signum() * Self::SCALE)
     }
 
+		/// https://en.wikipedia.org/wiki/Hacker%27s_Delight
     #[inline]
     #[must_use]
     pub fn sqrt(self) -> Self {
@@ -202,25 +204,100 @@ impl Fp {
             return self;
         }
 
-        const MAX_ITERATIONS: usize = 10;
-        const TOLERANCE: i32 = 1;
-        const TWO: Fp = Fp(Fp::SCALE * 2);
+        let ux = self.0 as u32;
+        let mut rem: u64 = 0;
+        let mut root: u32 = 0;
 
-        let mut guess = self / TWO;
+				// Shift input left by 16 bits so that we can generate 16 fractional bits
+        let mut op: u64 = (ux as u64) << 16;
 
-        for _ in 0..MAX_ITERATIONS {
-            let next_guess = (guess + self / guess) / TWO;
+        // We need 32 iterations to compute 16 integer + 16 frac bits
+        for _ in 0..32 {
+            root <<= 1;
 
-            // Check if the change is within the tolerance level
-            if (next_guess - guess).abs().0 <= TOLERANCE {
-                return next_guess;
+						// Bring in the top two bits of `op` into the remainder
+            rem = (rem << 2) | ((op >> 62) & 0b11);
+            op <<= 2;
+
+            // Trial divisor = (root << 1) | 1
+            let trial = ((root as u64) << 1) | 1;
+            if rem >= trial {
+                rem -= trial;
+                root |= 1;
             }
-
-            guess = next_guess;
         }
 
-        guess // Return the last guess if convergence wasn't fully reached
+        // `root` is now the 32-bit Q16.16 result
+        Self(root as i32)
     }
+
+    /*
+
+       /// Approximates `atan2(y, x)` using the precalculated lookup table.
+    /// Inputs `y` and `x` are in Q16.16 fixed-point format.
+    /// Returns the angle in Q16.16 fixed-point format.
+    fn approximate_atan2(y: i32, x: i32) -> i32 {
+        // Handle the special case when x = 0
+        if x == 0 {
+            return if y > 0 {
+                FIXED_HALF_PI
+            } else if y < 0 {
+                FIXED_MINUS_HALF_PI
+            } else {
+                0 // Undefined, return 0
+            };
+        }
+
+        // Determine the absolute values
+        let abs_x = if x < 0 { -x } else { x };
+        let abs_y = if y < 0 { -y } else { y };
+
+        // Determine the octant
+        let octant = if abs_x >= abs_y {
+            if y >= 0 {
+                0
+            } else {
+                7
+            }
+        } else {
+            if x >= 0 {
+                1
+            } else {
+                5
+            }
+        };
+
+        // Calculate the ratio scaled to Q16.16
+        let ratio = if abs_x >= abs_y {
+            fixed_div(abs_y, abs_x) // y / x
+        } else {
+            fixed_div(abs_x, abs_y) // x / y
+        };
+
+        // Convert the ratio to an integer index in [0, 31]
+        // Multiply by RATIOS_PER_OCTANT and clamp to 31
+        let ratio_scaled = (fixed_mul(ratio, RATIOS_PER_OCTANT << 16)) >> 16;
+        let ratio_index = if ratio_scaled > (RATIOS_PER_OCTANT - 1) as i32 {
+            RATIOS_PER_OCTANT - 1
+        } else {
+            ratio_scaled as usize
+        };
+
+        // Compute the table index
+        let table_index = octant * RATIOS_PER_OCTANT + ratio_index;
+        let mut angle = ATAN2_TABLE[table_index];
+
+        // Adjust the angle based on the octant
+        // This step is already handled during table generation, so no further adjustment is needed
+
+        angle
+    }
+
+        #[inline]
+        pub fn atan2(y: Self, x: Self) -> Self {
+            let index = Self::combine_atan2_args(y.0, x.0);
+            lookup_slices::ATAN2_TABLE[index]
+        }*/
 
     /// Returns the raw integer value from the `Fp`.
     ///
