@@ -10,6 +10,72 @@ use core::ops::{Add, AddAssign, Div, Mul, Neg, Rem, Sub, SubAssign};
 
 pub mod lookup_slices;
 
+// Q16.16 constants for angles
+const PI_Q16_16: i32 = 205_887; // round(pi * 65536)
+const TWO_PI_Q16_16: i32 = 411_775; // round(2*pi * 65536)
+
+// arctan(2^-i) in Q16.16 for i = 0..15
+const ATAN_TABLE_Q16_16: [i32; 16] = [
+    51_472, // atan(1.0)
+    30_386, // atan(0.5)
+    16_055, // atan(0.25)
+    8_150,  // ...
+    4_091, 2_047, 1_024, 512, 256, 128, 64, 32, 16, 8, 4, 2,
+];
+
+/// atan2(y, x) in Q16.16 (no division)
+pub fn atan2_q16_16(y_in: i32, x_in: i32) -> i32 {
+    if x_in == 0 && y_in == 0 {
+        return 0;
+    }
+
+    let mut x = x_in as i64;
+    let mut y = y_in as i64;
+
+    let mut base_angle: i64 = 0;
+
+    // Ensure x >= 0 by flipping both x and y if needed,
+    // and remember that flip as a +PI base offset.
+    if x < 0 {
+        x = -x;
+        y = -y;
+        base_angle = PI_Q16_16 as i64;
+    }
+
+    let mut z: i64 = 0;
+
+    for (i, &atan_i) in ATAN_TABLE_Q16_16.iter().enumerate() {
+        if y == 0 {
+            break;
+        }
+
+        let x_shift = x >> i;
+        let y_shift = y >> i;
+
+        if y > 0 {
+            // Rotate clockwise
+            x += y_shift;
+            y -= x_shift;
+            z += atan_i as i64;
+        } else {
+            // Rotate counter-clockwise
+            x -= y_shift;
+            y += x_shift;
+            z -= atan_i as i64;
+        }
+    }
+
+    let mut angle = base_angle + z;
+
+    if angle > PI_Q16_16 as i64 {
+        angle -= TWO_PI_Q16_16 as i64;
+    } else if angle <= -(PI_Q16_16 as i64) {
+        angle += TWO_PI_Q16_16 as i64;
+    }
+
+    angle as i32
+}
+
 /// A fixed-point number with 16.16 format.
 #[derive(Clone, Copy, Default, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct Fp(i32);
@@ -191,7 +257,7 @@ impl Fp {
         Self(self.0.signum() * Self::SCALE)
     }
 
-		/// https://en.wikipedia.org/wiki/Hacker%27s_Delight
+    /// https://en.wikipedia.org/wiki/Hacker%27s_Delight
     #[inline]
     #[must_use]
     pub fn sqrt(self) -> Self {
@@ -208,14 +274,14 @@ impl Fp {
         let mut rem: u64 = 0;
         let mut root: u32 = 0;
 
-				// Shift input left by 16 bits so that we can generate 16 fractional bits
+        // Shift input left by 16 bits so that we can generate 16 fractional bits
         let mut op: u64 = (ux as u64) << 16;
 
         // We need 32 iterations to compute 16 integer + 16 frac bits
         for _ in 0..32 {
             root <<= 1;
 
-						// Bring in the top two bits of `op` into the remainder
+            // Bring in the top two bits of `op` into the remainder
             rem = (rem << 2) | ((op >> 62) & 0b11);
             op <<= 2;
 
@@ -231,74 +297,12 @@ impl Fp {
         Self(root as i32)
     }
 
-    /*
+    #[inline]
+    pub fn atan2(y: Self, x: Self) -> Self {
+        let result = atan2_q16_16(y.0 as i32, x.0 as i32);
 
-       /// Approximates `atan2(y, x)` using the precalculated lookup table.
-    /// Inputs `y` and `x` are in Q16.16 fixed-point format.
-    /// Returns the angle in Q16.16 fixed-point format.
-    fn approximate_atan2(y: i32, x: i32) -> i32 {
-        // Handle the special case when x = 0
-        if x == 0 {
-            return if y > 0 {
-                FIXED_HALF_PI
-            } else if y < 0 {
-                FIXED_MINUS_HALF_PI
-            } else {
-                0 // Undefined, return 0
-            };
-        }
-
-        // Determine the absolute values
-        let abs_x = if x < 0 { -x } else { x };
-        let abs_y = if y < 0 { -y } else { y };
-
-        // Determine the octant
-        let octant = if abs_x >= abs_y {
-            if y >= 0 {
-                0
-            } else {
-                7
-            }
-        } else {
-            if x >= 0 {
-                1
-            } else {
-                5
-            }
-        };
-
-        // Calculate the ratio scaled to Q16.16
-        let ratio = if abs_x >= abs_y {
-            fixed_div(abs_y, abs_x) // y / x
-        } else {
-            fixed_div(abs_x, abs_y) // x / y
-        };
-
-        // Convert the ratio to an integer index in [0, 31]
-        // Multiply by RATIOS_PER_OCTANT and clamp to 31
-        let ratio_scaled = (fixed_mul(ratio, RATIOS_PER_OCTANT << 16)) >> 16;
-        let ratio_index = if ratio_scaled > (RATIOS_PER_OCTANT - 1) as i32 {
-            RATIOS_PER_OCTANT - 1
-        } else {
-            ratio_scaled as usize
-        };
-
-        // Compute the table index
-        let table_index = octant * RATIOS_PER_OCTANT + ratio_index;
-        let mut angle = ATAN2_TABLE[table_index];
-
-        // Adjust the angle based on the octant
-        // This step is already handled during table generation, so no further adjustment is needed
-
-        angle
+        Self::from_raw(result)
     }
-
-        #[inline]
-        pub fn atan2(y: Self, x: Self) -> Self {
-            let index = Self::combine_atan2_args(y.0, x.0);
-            lookup_slices::ATAN2_TABLE[index]
-        }*/
-
     /// Returns the raw integer value from the `Fp`.
     ///
     /// This method retrieves the underlying raw scaled value stored in the
@@ -597,7 +601,12 @@ fn lookup_unit_interval(slice: &[Fp], unit_interval: Fp) -> Fp {
 
 #[inline]
 fn lookup_radian(slice: &[Fp], radians: Fp) -> Fp {
-    let radians_modulo = radians % Fp::TAU;
+    let mut radians_modulo = radians % Fp::TAU;
+    // 2. Adjust for negative remainders (The True Modulo Step)
+    // If the result is negative, add the divisor (TAU) to bring it into the [0, TAU) range.
+    if radians_modulo < 0 {
+        radians_modulo += Fp::TAU;
+    }
     let normalized_slice_index = radians_modulo / Fp::TAU;
     lookup_normalized(slice, normalized_slice_index)
 }
