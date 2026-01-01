@@ -24,13 +24,14 @@ const ATAN_TABLE_Q16_16: [i32; 16] = [
 ];
 
 /// atan2(y, x) in Q16.16 (no division)
+#[must_use]
 pub fn atan2_q16_16(y_in: i32, x_in: i32) -> i32 {
     if x_in == 0 && y_in == 0 {
         return 0;
     }
 
-    let mut x = x_in as i64;
-    let mut y = y_in as i64;
+    let mut x = i64::from(x_in);
+    let mut y = i64::from(y_in);
 
     let mut base_angle: i64 = 0;
 
@@ -39,7 +40,7 @@ pub fn atan2_q16_16(y_in: i32, x_in: i32) -> i32 {
     if x < 0 {
         x = -x;
         y = -y;
-        base_angle = PI_Q16_16 as i64;
+        base_angle = i64::from(PI_Q16_16);
     }
 
     let mut z: i64 = 0;
@@ -56,21 +57,21 @@ pub fn atan2_q16_16(y_in: i32, x_in: i32) -> i32 {
             // Rotate clockwise
             x += y_shift;
             y -= x_shift;
-            z += atan_i as i64;
+            z += i64::from(atan_i);
         } else {
             // Rotate counter-clockwise
             x -= y_shift;
             y += x_shift;
-            z -= atan_i as i64;
+            z -= i64::from(atan_i);
         }
     }
 
     let mut angle = base_angle + z;
 
-    if angle > PI_Q16_16 as i64 {
-        angle -= TWO_PI_Q16_16 as i64;
-    } else if angle <= -(PI_Q16_16 as i64) {
-        angle += TWO_PI_Q16_16 as i64;
+    if angle > i64::from(PI_Q16_16) {
+        angle -= i64::from(TWO_PI_Q16_16);
+    } else if angle <= -i64::from(PI_Q16_16) {
+        angle += i64::from(TWO_PI_Q16_16);
     }
 
     angle as i32
@@ -108,8 +109,18 @@ impl Fp {
     ///
     /// ```rust
     /// use fixed32::Fp;
-    /// let fp = Fp::from_raw(100);
+    /// let fp = Fp::from_bits(100);
     /// ```
+    #[must_use]
+    pub const fn from_bits(raw: i32) -> Self {
+        Self(raw)
+    }
+
+    /// Creates an `Fp` fixed-point number from raw bits.
+    ///
+    /// # Deprecated
+    /// Use [`from_bits`](Self::from_bits) instead.
+    #[deprecated(since = "0.0.20", note = "Use `from_bits` instead")]
     #[must_use]
     pub const fn from_raw(raw: i32) -> Self {
         Self(raw)
@@ -257,7 +268,7 @@ impl Fp {
         Self(self.0.signum() * Self::SCALE)
     }
 
-    /// https://en.wikipedia.org/wiki/Hacker%27s_Delight
+    /// <https://en.wikipedia.org/wiki/Hacker%27s_Delight>
     #[inline]
     #[must_use]
     pub fn sqrt(self) -> Self {
@@ -275,7 +286,7 @@ impl Fp {
         let mut root: u32 = 0;
 
         // Shift input left by 16 bits so that we can generate 16 fractional bits
-        let mut op: u64 = (ux as u64) << 16;
+        let mut op: u64 = u64::from(ux) << 16;
 
         // We need 32 iterations to compute 16 integer + 16 frac bits
         for _ in 0..32 {
@@ -286,7 +297,7 @@ impl Fp {
             op <<= 2;
 
             // Trial divisor = (root << 1) | 1
-            let trial = ((root as u64) << 1) | 1;
+            let trial = (u64::from(root) << 1) | 1;
             if rem >= trial {
                 rem -= trial;
                 root |= 1;
@@ -298,10 +309,11 @@ impl Fp {
     }
 
     #[inline]
+    #[must_use]
     pub fn atan2(y: Self, x: Self) -> Self {
-        let result = atan2_q16_16(y.0 as i32, x.0 as i32);
+        let result = atan2_q16_16(y.0, x.0);
 
-        Self::from_raw(result)
+        Self::from_bits(result)
     }
     /// Returns the raw integer value from the `Fp`.
     ///
@@ -314,7 +326,7 @@ impl Fp {
     ///  **Warning:** Directly using the raw value returned by this method should be avoided
     /// unless absolutely necessary. It is generally preferable to use higher-level
     /// methods or conversion traits like `From<T>` and `into()` for conversions,
-    /// which handle scaling and ensure correctness. Using `inner()` may expose
+    /// which handle scaling and ensure correctness. Using `to_bits()` may expose
     /// the raw value in a way that bypasses intended abstractions and checks,
     /// potentially leading to incorrect usage.
     ///
@@ -324,12 +336,23 @@ impl Fp {
     ///
     /// ```rust
     /// use fixed32::Fp;
-    /// let fp = Fp::from_raw(100);
-    /// let raw_value = fp.inner();
+    /// let fp = Fp::from_bits(100);
+    /// let raw_value = fp.to_bits();
     ///
     /// // Preferred conversion using From<T> trait
     /// let value_from_fp: i32 = fp.into();
     /// ```
+    #[inline]
+    #[must_use]
+    pub const fn to_bits(self) -> i32 {
+        self.0
+    }
+
+    /// Returns the raw internal representation as an `i32`.
+    ///
+    /// # Deprecated
+    /// Use [`to_bits`](Self::to_bits) instead.
+    #[deprecated(since = "0.0.20", note = "Use `to_bits` instead ")]
     #[inline]
     #[must_use]
     pub const fn inner(self) -> i32 {
@@ -381,7 +404,7 @@ impl From<Fp> for i16 {
 impl From<Fp> for i32 {
     #[inline]
     fn from(fp: Fp) -> Self {
-        fp.to_int() as Self
+        Self::from(fp.to_int())
     }
 }
 
@@ -465,7 +488,7 @@ impl Mul<Self> for Fp {
 
     #[inline]
     fn mul(self, rhs: Self) -> Self {
-        Self((((self.0 as i64) * (rhs.0 as i64)) / (Self::SCALE as i64)) as i32)
+        Self(((i64::from(self.0) * i64::from(rhs.0)) / i64::from(Self::SCALE)) as i32)
     }
 }
 
@@ -476,12 +499,12 @@ impl Div<Self> for Fp {
     fn div(self, rhs: Self) -> Self {
         assert!(rhs.0 != 0, "division by zero");
 
-        let dividend_i64 = self.0 as i64;
-        let divisor_i64 = rhs.0 as i64;
+        let dividend_i64 = i64::from(self.0);
+        let divisor_i64 = i64::from(rhs.0);
         let quotient = dividend_i64 * Self::SCALE_I64 / divisor_i64;
 
         assert!(
-            !(quotient > i32::MAX as i64 || quotient < i32::MIN as i64),
+            !(quotient > i64::from(i32::MAX) || quotient < i64::from(i32::MIN)),
             "overflow occurred in Fp::div"
         );
 
@@ -535,7 +558,7 @@ impl Div<Fp> for i16 {
 
     #[inline]
     fn div(self, rhs: Fp) -> Self::Output {
-        Fp((self as i32) * Fp::SCALE / rhs.0 * Fp::SCALE)
+        Fp(i32::from(self) * Fp::SCALE / rhs.0 * Fp::SCALE)
     }
 }
 
@@ -544,7 +567,7 @@ impl Mul<Fp> for i16 {
 
     #[inline]
     fn mul(self, rhs: Fp) -> Self::Output {
-        Fp((self as i32) * rhs.0)
+        Fp(i32::from(self) * rhs.0)
     }
 }
 
@@ -553,7 +576,7 @@ impl Mul<i16> for Fp {
 
     #[inline]
     fn mul(self, rhs: i16) -> Self {
-        Self(self.0 * (rhs as i32))
+        Self(self.0 * i32::from(rhs))
     }
 }
 
@@ -568,13 +591,13 @@ impl Rem for Fp {
 
 impl PartialOrd<i16> for Fp {
     fn partial_cmp(&self, other: &i16) -> Option<Ordering> {
-        Some(self.0.cmp(&(*other as i32 * Self::SCALE)))
+        Some(self.0.cmp(&(i32::from(*other) * Self::SCALE)))
     }
 }
 
 impl PartialEq<i16> for Fp {
     fn eq(&self, other: &i16) -> bool {
-        self.0 == (*other as i32 * Self::SCALE)
+        self.0 == (i32::from(*other) * Self::SCALE)
     }
 }
 
